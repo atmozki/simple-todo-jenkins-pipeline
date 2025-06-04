@@ -2,7 +2,6 @@ pipeline {
   agent any
 
   environment {
-    // Local image name (no Docker Hub)
     IMAGE_NAME = "simple-todo-app"
     IMAGE_TAG  = "${env.BUILD_NUMBER}"
   }
@@ -25,14 +24,12 @@ pipeline {
       steps {
         bat 'npm run test'
       }
-      // No junit() step here since there are no XML reports
     }
 
     stage('Code Quality (Lint)') {
       steps {
         bat 'npm run lint'
       }
-      // Removed recordIssues entirely to avoid the missing-DSL error
     }
 
     stage('Security Scan') {
@@ -48,24 +45,22 @@ pipeline {
 
     stage('Build Docker Image Locally') {
       steps {
-        bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+        bat "docker build -t %IMAGE_NAME%:%IMAGE_TAG% ."
       }
     }
 
     stage('Deploy to Local “Staging”') {
       steps {
-        script {
-          bat """
-            docker stop simple-todo-staging || echo Staging container not running
-            docker rm simple-todo-staging  || echo Staging container not found
-          """
-          bat """
-            docker run -d ^
-              --name simple-todo-staging ^
-              -p 3001:3000 ^
-              ${IMAGE_NAME}:${IMAGE_TAG}
-          """
-        }
+        bat """
+          echo ====== Stopping existing staging container (if any) ======
+          docker stop simple-todo-staging || echo Staging container not running
+          echo ====== Removing existing staging container (if any) ======
+          docker rm simple-todo-staging  || echo Staging container not found
+          echo ====== Running new staging container port 3001 → 3000 ======
+          docker run -d --name simple-todo-staging -p 3001:3000 %IMAGE_NAME%:%IMAGE_TAG%
+          echo ====== Staging container started ======
+          docker ps --filter "name=simple-todo-staging"
+        """
       }
     }
 
@@ -74,18 +69,16 @@ pipeline {
         branch 'main'
       }
       steps {
-        script {
-          bat """
-            docker stop simple-todo-prod || echo Prod container not running
-            docker rm simple-todo-prod  || echo Prod container not found
-          """
-          bat """
-            docker run -d ^
-              --name simple-todo-prod ^
-              -p 3000:3000 ^
-              ${IMAGE_NAME}:${IMAGE_TAG}
-          """
-        }
+        bat """
+          echo ====== Stopping existing production container (if any) ======
+          docker stop simple-todo-prod || echo Prod container not running
+          echo ====== Removing existing production container (if any) ======
+          docker rm simple-todo-prod  || echo Prod container not found
+          echo ====== Running new production container port 3000 → 3000 ======
+          docker run -d --name simple-todo-prod -p 3000:3000 %IMAGE_NAME%:%IMAGE_TAG%
+          echo ====== Production container started ======
+          docker ps --filter "name=simple-todo-prod"
+        """
       }
     }
 
