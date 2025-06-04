@@ -25,18 +25,14 @@ pipeline {
       steps {
         bat 'npm run test'
       }
-      // Removed the junit(...) publisher here to avoid failure when no XML exists
+      // No junit() step here since there are no XML reports
     }
 
     stage('Code Quality (Lint)') {
       steps {
         bat 'npm run lint'
       }
-      post {
-        always {
-          recordIssues tools: [eslint(pattern: '**/*.js')]
-        }
-      }
+      // Removed recordIssues entirely to avoid the missing-DSL error
     }
 
     stage('Security Scan') {
