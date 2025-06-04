@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple To-Do App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 2em auto;
+      padding: 0 1em;
+    }
+    h1 {
+      text-align: center;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 0.5em 0;
+      border-bottom: 1px solid #ddd;
+    }
+    form {
+      margin-top: 1.5em;
+      display: flex;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.5em;
+      font-size: 1em;
+    }
+    button {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      margin-left: 0.5em;
+    }
+    .clear-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .clear-btn:hover {
+      background: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <h1>My Simple To-Do List</h1>
+
+  <% if (todos.length === 0) { %>
+    <p>No items yet. Add one below!</p>
+  <% } else { %>
+    <ul>
+      <% todos.forEach((todo, idx) => { %>
+        <li><%= idx + 1 %>. <%= todo %></li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form action="/add" method="POST">
+    <input type="text" name="item" placeholder="Enter a new to-do" autocomplete="off" />
+    <button type="submit">Add</button>
+  </form>
+
+  <form action="/clear" method="POST" style="margin-top: 0.5em;">
+    <button type="submit" class="clear-btn">Clear All</button>
+  </form>
+</body>
+</html>
