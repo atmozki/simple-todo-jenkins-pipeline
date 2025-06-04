@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    // Since we're building locally, no need for a registry string
+    // Local image name (no Docker Hub)
     IMAGE_NAME = "simple-todo-app"
     IMAGE_TAG  = "${env.BUILD_NUMBER}"
   }
@@ -10,39 +10,30 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        // Grab the code from wherever this Jenkins job is configured to look
         checkout scm
       }
     }
 
     stage('Install & Build') {
       steps {
-        // Use bat on Windows if Jenkins is running on Windows.
-        // If Jenkins agent is Linux (WSL or similar), replace with 'sh'.
         bat 'npm install'
-        bat 'npm run build'   // For our minimal app, build is usually a no-op or ESLint precompile
+        bat 'npm run build'
       }
     }
 
     stage('Test') {
       steps {
-        bat 'npm test'       // Expect your package.json has "test": "jest" or similar
+        bat 'npm run test'
       }
-      post {
-        always {
-          // Let’s archive any test output if you configure Jest to produce an XML report
-          junit '**/test-results/*.xml'  // Adjust if you generate JUnit XML; otherwise skip
-        }
-      }
+      // Removed the junit(...) publisher here to avoid failure when no XML exists
     }
 
     stage('Code Quality (Lint)') {
       steps {
-        bat 'npm run lint'   // Expect "lint" in package.json runs ESLint
+        bat 'npm run lint'
       }
       post {
         always {
-          // If you installed Warnings NG or ESLint Publisher, record any lint issues
           recordIssues tools: [eslint(pattern: '**/*.js')]
         }
       }
@@ -50,19 +41,17 @@ pipeline {
 
     stage('Security Scan') {
       steps {
-        // Run npm audit with at least moderate severity (or your preferred level)
-        bat 'npm audit --audit-level=moderate'
+        bat 'npm run security'
       }
       post {
         failure {
-          echo "Security issues detected. Check console for details."
+          echo "Security issues detected; check console output."
         }
       }
     }
 
     stage('Build Docker Image Locally') {
       steps {
-        // Build a Docker image named simple-todo-app:<buildNumber>
         bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
       }
     }
@@ -70,12 +59,10 @@ pipeline {
     stage('Deploy to Local “Staging”') {
       steps {
         script {
-          // If a previous staging container is running, stop & remove it
           bat """
             docker stop simple-todo-staging || echo Staging container not running
             docker rm simple-todo-staging  || echo Staging container not found
           """
-          // Run a new container from the image on port 3001
           bat """
             docker run -d ^
               --name simple-todo-staging ^
@@ -92,12 +79,10 @@ pipeline {
       }
       steps {
         script {
-          // Stop & remove any existing “prod” container
           bat """
             docker stop simple-todo-prod || echo Prod container not running
             docker rm simple-todo-prod  || echo Prod container not found
           """
-          // Run a new prod container on port 3000
           bat """
             docker run -d ^
               --name simple-todo-prod ^
@@ -111,15 +96,11 @@ pipeline {
     stage('Health Check') {
       steps {
         script {
-          // Pause briefly to give the prod container a moment to start
           sleep(time: 5, unit: 'SECONDS')
-
-          // Check that http://localhost:3000/health returns 200
           def status = bat(
             script: 'curl -s -o NUL -w "%{http_code}" http://localhost:3000/health',
             returnStdout: true
           ).trim()
-
           if (status != '200') {
             error("Health check failed: HTTP ${status}")
           } else {
@@ -129,8 +110,6 @@ pipeline {
       }
       post {
         failure {
-          // If you have Email Extension configured, it could send an alert here.
-          // For now, just echo a message.
           echo "⚠️ Health check failed; inspect your application."
         }
       }
@@ -139,7 +118,6 @@ pipeline {
 
   post {
     always {
-      // Clean up workspace (and optionally remove images/containers):
       cleanWs()
     }
     success {
